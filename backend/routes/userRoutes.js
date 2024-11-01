@@ -1,24 +1,39 @@
-// backend/routes/userRoutes.js
 const express = require("express");
 const router = express.Router();
-const User = require("../models/user"); // User model import
+const bcrypt = require("bcrypt");
+const User = require("../models/user");
 
-// Route to save user name
 router.post("/users", async (req, res) => {
     try {
-        // Receiving the name from the request body
-        const newUser = new User({ name: req.body.name });
+        const { name, rollNo, email, password } = req.body;
 
-        // Console log to confirm name received in userRoutes.js
-        console.log("Received Name in userRoutes.js:", req.body.name);
+        // Check if user already exists with same name, rollNo, or email
+        const existingUser = await User.findOne({
+            $or: [{ name }, { rollNo }, { email }]
+        });
 
-        // Saving the user data in MongoDB
+        if (existingUser) {
+            return res.status(400).json({ message: "User with same name, rollNo, or email already exists" });
+        }
+
+        // Hash the password
+        const saltRounds = 10;
+        const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+        // Create new user
+        const newUser = new User({
+            name,
+            rollNo,
+            email,
+            password: hashedPassword
+        });
+
+        console.log("Received Name, Roll No, Email in userRoutes.js:", name, rollNo, email, password);
+
+        // Save the new user in MongoDB
         const savedUser = await newUser.save();
-
-        // Sending saved data as a response
         res.status(201).json(savedUser);
     } catch (error) {
-        // Error handling if saving fails
         console.error("Error in userRoutes.js while saving user:", error);
         res.status(500).json({ message: "Error saving user", error });
     }
